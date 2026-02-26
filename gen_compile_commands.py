@@ -125,6 +125,20 @@ def generate_config_template(output_path, add_subdirs=False, verbose=False):
         print(f"Template config file generated at {output_path}")
 
 
+def print_help():
+    """Print usage instructions."""
+    print("""
+Usage: gen_compile_commands [options]
+
+Options:
+  -v                  Enable verbose mode (prints detailed information)
+  -f <file_or_dir>    Specify the configuration file or directory containing the config
+  -g                  Generate the config template file (.gen_compile_commands_cfg.json)
+  -i                  Include subdirectories in the config template
+  -h                  Show this help message
+""")
+
+
 def main():
     """Main function to handle user input and generate compile_commands.json."""
     verbose = False
@@ -136,7 +150,11 @@ def main():
         # If no arguments are provided, set config_path to the default config file in the current directory
         config_path = ".gen_compile_commands_cfg.json"
     else:
-        # Handle options like -v and -f
+        # Handle options like -v, -f, -g, -h, and -i
+        if "-h" in sys.argv:
+            print_help()
+            sys.exit(0)
+
         if "-v" in sys.argv:
             verbose = True
             sys.argv.remove("-v")  # Remove the -v option so it doesn't interfere
