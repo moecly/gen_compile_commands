@@ -23,12 +23,6 @@
    cd gen_compile_commands
    ```
 
-1. Install the required Python packages (if needed):
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
 ## Usage
 
 ### 1. Print Help Information
