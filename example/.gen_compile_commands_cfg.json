@@ -1,0 +1,16 @@
+{
+  "source_dir": "/path/to/source",
+  "include_dirs": [
+    "/path/to/include",
+    "/path/to/other/include"
+  ],
+  "defines": [
+    "-DDEBUG",
+    "-DANOTHER_MACRO"
+  ],
+  "compiler": "gcc",
+  "source_files": [
+    "**/*.c",
+    "**/*.cpp"
+  ]
+}

@@ -1,0 +1,6 @@
+**/compile_commands.json
+**/build/
+**/dist/
+**/*.spec
+**/__pycache__/
+**/*.exe
