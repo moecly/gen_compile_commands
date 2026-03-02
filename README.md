@@ -1,15 +1,23 @@
+<div align="center">
+
+**[English](./README.md) | [简体中文](./README_zh.md)**
+
+</div>
+
+---
+
 # Gen Compile Commands
 
-`gen_compile_commands` is a tool used to generate a `compile_commands.json` file for C/C++ projects. It extracts relevant information from a given configuration file and generates a list of commands used for compiling the project, which can be integrated into IDEs or other build tools.
+`gen_compile_commands` is a tool used to generate a `compile_commands.json` file for C/C++ projects. It extracts relevant information from a given configuration file and generates a list of commands used for compiling the project, which can be integrated into IDEs or other build tools (like `clangd`).
 
-## Features
+## ✨ Features
 
 - **Generate Compile Commands**: Generate a `compile_commands.json` file based on project configuration, suitable for tools like `clangd`.
 - **Generate Config Template**: Generate a config template file `.gen_compile_commands_cfg.json` using the `-g` option, which can be quickly modified to create project configuration files.
 - **Support Recursive Include Directories**: Automatically include all subdirectories in the `include_dirs` field via the `-i` option.
 - **Verbose Mode**: Enable detailed output using the `-v` option to view the execution process of the tool.
 
-## Installation
+## 🚀 Installation
 
 1. Clone the repository:
 
@@ -17,13 +25,13 @@
    git clone https://github.com/moecly/gen_compile_commands.git
    ```
 
-1. Navigate to the project directory:
+2. Navigate to the project directory:
 
    ```bash
    cd gen_compile_commands
    ```
 
-## Usage
+## 📝 Usage
 
 ### 1. Print Help Information
 
@@ -54,10 +62,10 @@ You can generate the `compile_commands.json` file by specifying the configuratio
 python gen_compile_commands.py -f /path/to/config.json
 ```
 
-If the configuration file is located in the current directory, the command can be simplified:
+If the configuration file is located in the current directory (and named `.gen_compile_commands_cfg.json`), the command can be simplified:
 
 ```bash
-python gen_compile_commands.py -v
+python gen_compile_commands.py
 ```
 
 ### 3. Generate Config Template
@@ -92,7 +100,7 @@ Use the `-i` option when generating the template to automatically include all su
 python gen_compile_commands.py -g -i
 ```
 
-## Compile into ELF Executable
+## 📦 Compile into ELF Executable
 
 If you want to package `gen_compile_commands` into a standalone ELF executable, you can use [PyInstaller](https://pyinstaller.org/):
 
@@ -114,7 +122,7 @@ If you want to package `gen_compile_commands` into a standalone ELF executable, 
    ./dist/gen_compile_commands
    ```
 
-## Configuration File Explanation
+## 📄 Configuration File Explanation
 
 `gen_compile_commands` generates compile commands by reading a JSON configuration file. The configuration file contains the following fields:
 
@@ -145,7 +153,7 @@ If you want to package `gen_compile_commands` into a standalone ELF executable, 
 }
 ```
 
-## Frequently Asked Questions
+## ❓ Frequently Asked Questions
 
 ### 1. How can I specify include directories (`include_dirs`)?
 
@@ -159,10 +167,10 @@ Enable verbose mode with the `-v` option to see detailed information about the p
 
 Use the `-g` option to generate the template file and modify it according to your needs.
 
-## Contributing
+## 🤝 Contributing
 
 If you have suggestions or issues, feel free to submit an Issue or Pull Request.
 
-## License
+## 📜 License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
