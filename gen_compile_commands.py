@@ -29,54 +29,51 @@ def load_config(config_path, verbose=False):
     return config
 
 
-def generate_compile_commands(config, verbose=False):
-    """Generate the compile commands from the configuration."""
+def generate_compile_commands_iter(config, verbose=False):
+    """Generate the compile commands from the configuration as an iterator."""
     source_dir = config["source_dir"]
     include_dirs = config["include_dirs"]
     defines = config["defines"]
     compiler = config["compiler"]
     source_files = config["source_files"]
 
-    commands = []
-
-    # Print macros if verbose
     if verbose:
         print(f"Macros defined: {defines}")
 
-    # Iterate through source files and match files
-    all_files = []
+    # Iterate through patterns
     for pattern in source_files:
-        files = glob.glob(os.path.join(source_dir, pattern), recursive=True)
+        # Use iglob for memory efficiency - it returns an iterator, not a list
+        files_iterator = glob.iglob(os.path.join(source_dir, pattern), recursive=True)
 
         if verbose:
-            print(f"Pattern: {pattern} -> Found files: {files}")
+            print(f"Processing pattern: {pattern}")
 
-        all_files.extend(files)
-
-    # If verbose, print the list of all source files
-    if verbose:
-        print(f"All source files found: {all_files}")
-
-    # Generate compile command for each file
-    for source_file in all_files:
-        command = {
-            "directory": source_dir,
-            "command": f"{compiler} {' '.join(['-I' + d for d in include_dirs])} "
-            f"{' '.join(defines)} -c {source_file} -o {source_file}.o",
-            "file": source_file,
-        }
-        commands.append(command)
-
-    return commands, all_files
+        # Generate compile command for each file as it's found
+        for source_file in files_iterator:
+            command = {
+                "directory": source_dir,
+                "command": f"{compiler} {' '.join(['-I' + d for d in include_dirs])} "
+                f"{' '.join(defines)} -c {source_file} -o {source_file}.o",
+                "file": source_file,
+            }
+            # 'yield' turns this function into a generator
+            yield command
 
 
-def save_compile_commands(commands, output_path, verbose=False):
-    """Save the generated compile commands to a JSON file."""
+def save_compile_commands_iter(commands_iterator, output_path, verbose=False):
+    """Save the generated compile commands from an iterator to a JSON file."""
     if verbose:
         print(f"Saving compile commands to {output_path}")
     try:
         with open(output_path, "w") as f:
-            json.dump(commands, f, indent=4)
+            f.write("[\n")  # Start of JSON array
+            first = True
+            for command in commands_iterator:
+                if not first:
+                    f.write(",\n")  # Add comma before the next item
+                json.dump(command, f, indent=4)
+                first = False
+            f.write("\n]\n")  # End of JSON array
     except IOError:
         print(f"Error: Failed to save compile commands to {output_path}.")
         sys.exit(1)
@@ -145,37 +142,27 @@ def main():
     config_path = None  # Default config path is None (to be set later)
     add_subdirs = False  # Default for -i flag (to be set later)
 
-    # Check for command line arguments
+    # ... (Argument parsing logic is fine, no changes needed here) ...
     if len(sys.argv) == 1:
-        # If no arguments are provided, set config_path to the default config file in the current directory
         config_path = ".gen_compile_commands_cfg.json"
     else:
-        # Handle options like -v, -f, -g, -h, and -i
         if "-h" in sys.argv:
             print_help()
             sys.exit(0)
-
         if "-v" in sys.argv:
             verbose = True
-            sys.argv.remove("-v")  # Remove the -v option so it doesn't interfere
-
+            sys.argv.remove("-v")
         if "-f" in sys.argv:
-            # If the -f option is provided, expect a directory path or a JSON file
             if len(sys.argv) < 3:
                 print("Error: -f requires a path to a directory or JSON config file.")
                 sys.exit(1)
-
-            input_path = sys.argv[
-                2
-            ]  # The next argument after -f is the path to the config
+            input_path = sys.argv[2]
             if os.path.isdir(input_path):
-                # If it's a directory, check for .gen_compile_commands_cfg.json inside it
                 config_path = os.path.join(input_path, ".gen_compile_commands_cfg.json")
                 if not os.path.exists(config_path):
                     print(f"Error: {config_path} does not exist.")
                     sys.exit(1)
             elif os.path.isfile(input_path) and input_path.endswith(".json"):
-                # If it's a JSON file, use it directly
                 config_path = input_path
             else:
                 print(
@@ -184,36 +171,31 @@ def main():
                 sys.exit(1)
         else:
             config_path = ".gen_compile_commands_cfg.json"
-
         if "-g" in sys.argv:
-            # Generate the config template
             if "-i" in sys.argv:
-                # If `-i` flag is provided, enable the "brutal" include_dirs generation
                 add_subdirs = True
-                sys.argv.remove("-i")  # Remove the -i option so it doesn't interfere
-
-            # Generate the template
+                sys.argv.remove("-i")
             generate_config_template(
                 ".gen_compile_commands_cfg.json", add_subdirs, verbose
             )
             return
 
-    # If no config_path is set, we use the default config in the current directory
     if not config_path:
-        print(
-            "Error: Configuration file path is not provided. Use -f to specify a config file."
-        )
-        sys.exit(1)
+        # Check if config path was determined after parsing args
+        if os.path.exists(".gen_compile_commands_cfg.json"):
+            config_path = ".gen_compile_commands_cfg.json"
+        else:
+            print("Error: Configuration file .gen_compile_commands_cfg.json not found.")
+            sys.exit(1)
 
     # Load the configuration and generate compile_commands.json
     config = load_config(config_path, verbose)
-    commands, all_files = generate_compile_commands(config, verbose)
-    save_compile_commands(commands, "compile_commands.json", verbose)
+    # Get the iterator from the generator function
+    commands_iterator = generate_compile_commands_iter(config, verbose)
+    # Pass the iterator to the streaming save function
+    save_compile_commands_iter(commands_iterator, "compile_commands.json", verbose)
 
-    # Print success message if not in verbose mode
-    if verbose:
-        print(f"All source files: {all_files}")
-    else:
+    if not verbose:
         print("compile_commands.json has been successfully generated.")
 
 
