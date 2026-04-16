@@ -1,5 +1,8 @@
 name: Release
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     tags:
@@ -35,7 +38,12 @@ jobs:
         run: pip install pyinstaller
 
       - name: Build on ${{ matrix.platform }}
-        run: pyinstaller --onefile gen_compile_commands.py --name gen_compile_commands-${{ matrix.suffix }}
+        shell: pwsh
+        run: |
+          pyinstaller --onefile gen_compile_commands.py --name gen_compile_commands-${{ matrix.suffix }}
+          if (Test-Path "dist/gen_compile_commands.exe") {
+            Rename-Item "dist/gen_compile_commands.exe" "gen_compile_commands-exe"
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -60,17 +68,20 @@ jobs:
 
       - name: Prepare artifacts
         run: |
-          cd artifacts
-          for dir in */; do
-            mv "$dir"* . 2>/dev/null || true
-          done
-          ls -la
+          mkdir -p release-files
+          cp artifacts/gen_compile_commands-linux/* release-files/ 2>/dev/null || true
+          cp artifacts/gen_compile_commands-exe/* release-files/ 2>/dev/null || true
+          cp artifacts/gen_compile_commands-macos/* release-files/ 2>/dev/null || true
+          mv release-files/gen_compile_commands-linux release-files/gen_compile_commands-linux 2>/dev/null || true
+          mv release-files/gen_compile_commands-exe release-files/gen_compile_commands.exe 2>/dev/null || true
+          mv release-files/gen_compile_commands-macos release-files/gen_compile_commands-macos 2>/dev/null || true
+          ls -la release-files/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/gen_compile_commands-linux
-            artifacts/gen_compile_commands.exe
-            artifacts/gen_compile_commands-macos
+            release-files/gen_compile_commands-linux
+            release-files/gen_compile_commands.exe
+            release-files/gen_compile_commands-macos
           generate_release_notes: true
