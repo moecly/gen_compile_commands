@@ -169,6 +169,54 @@ def test_generate_compile_commands_iter_exclude_nested_dir(tmp_path):
     assert "main.c" in commands[0].file
 
 
+def test_generate_compile_commands_iter_exclude_wildcard_pattern(tmp_path):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+
+    build_dir = src_dir / "build_debug"
+    build_dir.mkdir()
+    (build_dir / "build.c").write_text("// build")
+
+    (src_dir / "main.c").write_text("// main")
+
+    config = {
+        "source_dir": str(src_dir),
+        "include_dirs": [],
+        "exclude_dirs": ["build*"],
+        "defines": [],
+        "compiler": "gcc",
+        "source_files": ["**/*.c"]
+    }
+
+    commands = list(generate_compile_commands_iter(config))
+    assert len(commands) == 1
+    assert "main.c" in commands[0].file
+
+
+def test_generate_compile_commands_iter_exclude_dot_prefix(tmp_path):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+
+    hidden_dir = src_dir / ".hidden"
+    hidden_dir.mkdir()
+    (hidden_dir / "hidden.c").write_text("// hidden")
+
+    (src_dir / "main.c").write_text("// main")
+
+    config = {
+        "source_dir": str(src_dir),
+        "include_dirs": [],
+        "exclude_dirs": [".*"],
+        "defines": [],
+        "compiler": "gcc",
+        "source_files": ["**/*.c"]
+    }
+
+    commands = list(generate_compile_commands_iter(config))
+    assert len(commands) == 1
+    assert "main.c" in commands[0].file
+
+
 def test_save_compile_commands_iter(tmp_path):
     output_path = tmp_path / "compile_commands.json"
 

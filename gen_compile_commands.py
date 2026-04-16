@@ -3,17 +3,16 @@ import sys
 import json
 import glob
 import logging
+import fnmatch
 from typing import Iterator, Dict, Any, List, Optional
 from dataclasses import dataclass
 
 
 DEFAULT_EXCLUDE_DIRS = [
-    ".git", ".svn", ".hg", ".bzr",
+    ".*", "build*", "test*",
     "node_modules", "venv", ".venv", "env",
-    "build", "dist", "target", ".cmake",
-    "__pycache__", ".pytest_cache", ".mypy_cache",
-    ".idea", ".vscode", ".vs",
-    "bin", "obj", "out", ".deps", ".objs"
+    "build", "dist", "target",
+    "__pycache__", "bin", "obj", "out"
 ]
 
 
@@ -90,8 +89,9 @@ def validate_config(config: Dict[str, Any]) -> List[str]:
 def is_in_excluded_dir(file_path: str, exclude_dirs: List[str]) -> bool:
     parts = file_path.split(os.sep)
     for part in parts:
-        if part in exclude_dirs:
-            return True
+        for pattern in exclude_dirs:
+            if fnmatch.fnmatch(part, pattern):
+                return True
     return False
 
 

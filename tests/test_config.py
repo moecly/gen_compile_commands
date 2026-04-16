@@ -158,8 +158,8 @@ def test_generate_config_template():
         assert "compiler" in template
         assert "source_files" in template
         assert template["include_dirs"] == ["path/to/include1", "path/to/include2"]
-        assert ".git" in template["exclude_dirs"]
-        assert "node_modules" in template["exclude_dirs"]
+        assert ".*" in template["exclude_dirs"]
+        assert "build*" in template["exclude_dirs"]
     finally:
         if os.path.exists(temp_path):
             os.unlink(temp_path)
@@ -180,7 +180,7 @@ def test_generate_config_template_with_subdirs(tmp_path):
 
         assert len(template["include_dirs"]) > 0
         assert any("subdir1" in d for d in template["include_dirs"])
-        assert ".git" in template["exclude_dirs"]
+        assert ".*" in template["exclude_dirs"]
     finally:
         os.chdir(old_cwd)
         if os.path.exists(template_path):
