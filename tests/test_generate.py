@@ -92,6 +92,83 @@ def test_generate_compile_commands_iter_recursive(tmp_path):
     assert len(commands) == 2
 
 
+def test_generate_compile_commands_iter_exclude_dirs(tmp_path):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+
+    build_dir = src_dir / "build"
+    build_dir.mkdir()
+    (build_dir / "generated.c").write_text("// generated")
+
+    (src_dir / "main.c").write_text("// main")
+
+    config = {
+        "source_dir": str(src_dir),
+        "include_dirs": [],
+        "exclude_dirs": ["build"],
+        "defines": [],
+        "compiler": "gcc",
+        "source_files": ["**/*.c"]
+    }
+
+    commands = list(generate_compile_commands_iter(config))
+    assert len(commands) == 1
+    assert "main.c" in commands[0].file
+    assert "generated.c" not in commands[0].file
+
+
+def test_generate_compile_commands_iter_exclude_multiple_dirs(tmp_path):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+
+    build_dir = src_dir / "build"
+    build_dir.mkdir()
+    (build_dir / "build.c").write_text("// build")
+
+    test_dir = src_dir / "test"
+    test_dir.mkdir()
+    (test_dir / "test.c").write_text("// test")
+
+    (src_dir / "main.c").write_text("// main")
+
+    config = {
+        "source_dir": str(src_dir),
+        "include_dirs": [],
+        "exclude_dirs": ["build", "test"],
+        "defines": [],
+        "compiler": "gcc",
+        "source_files": ["**/*.c"]
+    }
+
+    commands = list(generate_compile_commands_iter(config))
+    assert len(commands) == 1
+    assert "main.c" in commands[0].file
+
+
+def test_generate_compile_commands_iter_exclude_nested_dir(tmp_path):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+
+    nested_exclude = src_dir / "node_modules" / "package"
+    nested_exclude.mkdir(parents=True)
+    (nested_exclude / "dep.c").write_text("// dep")
+
+    (src_dir / "main.c").write_text("// main")
+
+    config = {
+        "source_dir": str(src_dir),
+        "include_dirs": [],
+        "exclude_dirs": ["node_modules"],
+        "defines": [],
+        "compiler": "gcc",
+        "source_files": ["**/*.c"]
+    }
+
+    commands = list(generate_compile_commands_iter(config))
+    assert len(commands) == 1
+    assert "main.c" in commands[0].file
+
+
 def test_save_compile_commands_iter(tmp_path):
     output_path = tmp_path / "compile_commands.json"
 

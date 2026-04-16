@@ -7,12 +7,23 @@ from typing import Iterator, Dict, Any, List, Optional
 from dataclasses import dataclass
 
 
+DEFAULT_EXCLUDE_DIRS = [
+    ".git", ".svn", ".hg", ".bzr",
+    "node_modules", "venv", ".venv", "env",
+    "build", "dist", "target", ".cmake",
+    "__pycache__", ".pytest_cache", ".mypy_cache",
+    ".idea", ".vscode", ".vs",
+    "bin", "obj", "out", ".deps", ".objs"
+]
+
+
 CONFIG_SCHEMA = {
     "type": "object",
     "required": ["source_dir", "include_dirs", "defines", "compiler", "source_files"],
     "properties": {
         "source_dir": {"type": "string"},
         "include_dirs": {"type": "array", "items": {"type": "string"}},
+        "exclude_dirs": {"type": "array", "items": {"type": "string"}},
         "defines": {"type": "array", "items": {"type": "string"}},
         "compiler": {"type": "string"},
         "source_files": {"type": "array", "items": {"type": "string"}}
@@ -52,6 +63,12 @@ def validate_config(config: Dict[str, Any]) -> List[str]:
         elif not all(isinstance(d, str) for d in config["include_dirs"]):
             errors.append("All items in 'include_dirs' must be strings")
 
+    if "exclude_dirs" in config:
+        if not isinstance(config["exclude_dirs"], list):
+            errors.append("'exclude_dirs' must be an array")
+        elif not all(isinstance(d, str) for d in config["exclude_dirs"]):
+            errors.append("All items in 'exclude_dirs' must be strings")
+
     if "defines" in config:
         if not isinstance(config["defines"], list):
             errors.append("'defines' must be an array")
@@ -68,6 +85,14 @@ def validate_config(config: Dict[str, Any]) -> List[str]:
             errors.append("All items in 'source_files' must be strings")
 
     return errors
+
+
+def is_in_excluded_dir(file_path: str, exclude_dirs: List[str]) -> bool:
+    parts = file_path.split(os.sep)
+    for part in parts:
+        if part in exclude_dirs:
+            return True
+    return False
 
 
 def load_config(config_path: str, verbose: bool = False) -> Dict[str, Any]:
@@ -95,6 +120,7 @@ def load_config(config_path: str, verbose: bool = False) -> Dict[str, Any]:
         logger.info("Configuration loaded:")
         logger.info(f"  source_dir: {config['source_dir']}")
         logger.info(f"  include_dirs: {config['include_dirs']}")
+        logger.info(f"  exclude_dirs: {config.get('exclude_dirs', [])}")
         logger.info(f"  defines: {config['defines']}")
         logger.info(f"  compiler: {config['compiler']}")
         logger.info(f"  source_files: {config['source_files']}")
@@ -109,12 +135,15 @@ def generate_compile_commands_iter(
 
     source_dir: str = config["source_dir"]
     include_dirs: List[str] = config["include_dirs"]
+    exclude_dirs: List[str] = config.get("exclude_dirs", [])
     defines: List[str] = config["defines"]
     compiler: str = config["compiler"]
     source_files: List[str] = config["source_files"]
 
     if verbose:
         logger.debug(f"Macros defined: {defines}")
+        if exclude_dirs:
+            logger.debug(f"Excluding directories: {exclude_dirs}")
 
     for pattern in source_files:
         if verbose:
@@ -123,6 +152,11 @@ def generate_compile_commands_iter(
         files_iterator = glob.iglob(os.path.join(source_dir, pattern), recursive=True)
 
         for source_file in files_iterator:
+            if is_in_excluded_dir(source_file, exclude_dirs):
+                if verbose:
+                    logger.debug(f"Skipping excluded: {source_file}")
+                continue
+
             command_str = " ".join([f"-I{d}" for d in include_dirs])
             command_str = f"{compiler} {command_str} {' '.join(defines)} -c {source_file} -o {source_file}.o"
 
@@ -168,6 +202,7 @@ def save_compile_commands_iter(
 def generate_config_template(
     output_path: str,
     add_subdirs: bool = False,
+    extra_exclude_dirs: Optional[List[str]] = None,
     verbose: bool = False
 ) -> None:
     logger = logging.getLogger(__name__)
@@ -183,9 +218,18 @@ def generate_config_template(
                 include_dirs.append(full_path)
                 logger.debug(f"  Added: {full_path}")
 
+    exclude_dirs = list(DEFAULT_EXCLUDE_DIRS)
+    if extra_exclude_dirs:
+        for d in extra_exclude_dirs:
+            if d not in exclude_dirs:
+                exclude_dirs.append(d)
+        if verbose:
+            logger.debug(f"Adding extra exclude dirs: {extra_exclude_dirs}")
+
     template: Dict[str, Any] = {
         "source_dir": source_dir,
         "include_dirs": include_dirs if add_subdirs else ["path/to/include1", "path/to/include2"],
+        "exclude_dirs": sorted(exclude_dirs),
         "defines": ["-DDEBUG", "-DANOTHER_MACRO"],
         "compiler": "gcc",
         "source_files": ["**/*.c", "**/*.cpp"]
@@ -210,6 +254,7 @@ Options:
   -f <file_or_dir>    Specify the configuration file or directory containing the config
   -g                  Generate the config template file (.gen_compile_commands_cfg.json)
   -i                  Include subdirectories in the config template
+  -e <dir>            Add directory to exclude list (can be used multiple times)
   -h                  Show this help message
 """)
 
@@ -218,6 +263,7 @@ def main() -> None:
     verbose = False
     config_path: Optional[str] = None
     add_subdirs = False
+    extra_exclude_dirs: List[str] = []
 
     if len(sys.argv) == 1:
         config_path = ".gen_compile_commands_cfg.json"
@@ -230,6 +276,15 @@ def main() -> None:
             sys.argv.remove("-v")
 
         setup_logging(verbose)
+
+        while "-e" in sys.argv:
+            idx = sys.argv.index("-e")
+            if len(sys.argv) <= idx + 1:
+                print("Error: -e requires a directory name.")
+                sys.exit(1)
+            extra_exclude_dirs.append(sys.argv[idx + 1])
+            sys.argv.pop(idx)
+            sys.argv.pop(idx)
 
         if "-f" in sys.argv:
             idx = sys.argv.index("-f")
@@ -255,7 +310,12 @@ def main() -> None:
                 add_subdirs = True
                 sys.argv.remove("-i")
             setup_logging(verbose)
-            generate_config_template(".gen_compile_commands_cfg.json", add_subdirs, verbose)
+            generate_config_template(
+                ".gen_compile_commands_cfg.json",
+                add_subdirs,
+                extra_exclude_dirs if extra_exclude_dirs else None,
+                verbose
+            )
             return
 
     if not config_path:

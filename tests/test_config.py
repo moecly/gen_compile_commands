@@ -20,6 +20,19 @@ def test_validate_config_valid():
     assert errors == [], f"Expected no errors, got: {errors}"
 
 
+def test_validate_config_valid_with_exclude_dirs():
+    config = {
+        "source_dir": "/path/to/source",
+        "include_dirs": ["path/to/include"],
+        "exclude_dirs": [".git", "node_modules"],
+        "defines": ["-DDEBUG"],
+        "compiler": "gcc",
+        "source_files": ["**/*.c"]
+    }
+    errors = validate_config(config)
+    assert errors == [], f"Expected no errors, got: {errors}"
+
+
 def test_validate_config_missing_source_dir():
     config = {
         "include_dirs": ["path/to/include"],
@@ -65,6 +78,19 @@ def test_validate_config_invalid_array_items():
     assert "All items in 'include_dirs' must be strings" in errors
     assert "All items in 'defines' must be strings" in errors
     assert "All items in 'source_files' must be strings" in errors
+
+
+def test_validate_config_invalid_exclude_dirs():
+    config = {
+        "source_dir": "/path",
+        "include_dirs": [],
+        "exclude_dirs": [123, "string"],
+        "defines": [],
+        "compiler": "gcc",
+        "source_files": ["*.c"]
+    }
+    errors = validate_config(config)
+    assert "All items in 'exclude_dirs' must be strings" in errors
 
 
 def test_load_config_file_not_found():
@@ -127,10 +153,13 @@ def test_generate_config_template():
 
         assert "source_dir" in template
         assert "include_dirs" in template
+        assert "exclude_dirs" in template
         assert "defines" in template
         assert "compiler" in template
         assert "source_files" in template
         assert template["include_dirs"] == ["path/to/include1", "path/to/include2"]
+        assert ".git" in template["exclude_dirs"]
+        assert "node_modules" in template["exclude_dirs"]
     finally:
         if os.path.exists(temp_path):
             os.unlink(temp_path)
@@ -151,6 +180,26 @@ def test_generate_config_template_with_subdirs(tmp_path):
 
         assert len(template["include_dirs"]) > 0
         assert any("subdir1" in d for d in template["include_dirs"])
+        assert ".git" in template["exclude_dirs"]
+    finally:
+        os.chdir(old_cwd)
+        if os.path.exists(template_path):
+            os.unlink(template_path)
+
+
+def test_generate_config_template_with_extra_exclude_dirs(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+
+    try:
+        template_path = ".gen_compile_commands_cfg.json"
+        generate_config_template(template_path, add_subdirs=False, extra_exclude_dirs=["test", "examples"])
+
+        with open(template_path, 'r') as f:
+            template = json.load(f)
+
+        assert "test" in template["exclude_dirs"]
+        assert "examples" in template["exclude_dirs"]
     finally:
         os.chdir(old_cwd)
         if os.path.exists(template_path):
