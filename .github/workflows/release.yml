@@ -44,8 +44,9 @@ jobs:
         shell: pwsh
         run: |
           pyinstaller --onefile gen_compile_commands.py --name gen_compile_commands-${{ matrix.name }}
-          if (Test-Path "dist/gen_compile_commands-${{ matrix.name }}.exe") {
-            Rename-Item "dist/gen_compile_commands-${{ matrix.name }}.exe" "dist/gen_compile_commands-${{ matrix.name }}"
+          $exeFile = Get-ChildItem -Path "dist" -Filter "*.exe" -File | Select-Object -First 1
+          if ($exeFile) {
+            Move-Item -Path $exeFile.FullName -Destination "dist/gen_compile_commands-${{ matrix.name }}"
           }
 
       - name: Upload artifact
